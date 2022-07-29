@@ -1,4 +1,4 @@
-import { LinkedList, ConsLinkedList } from "../src/LinkedList";
+import { LinkedList, ConsLinkedList, EmptyLinkedList } from "../src/LinkedList";
 import { typeOf } from "../src/Comparison";
 import { HashMap } from "../src/HashMap";
 import { Option } from "../src/Option";
@@ -56,4 +56,56 @@ describe("static LinkedList.zip", () => {
     assert.equal(2, other[0]);
     assert.equal("b", other[1]);
     assert.equal(10, other[2]);
+});
+
+it("LinkedList returns ConsLinkedList and EmptyLinkedLIst when appropriate", () => {
+    function shouldBeEmpty<T>(list: EmptyLinkedList<T>) {}
+    function shouldBeCons<T>(list: ConsLinkedList<T>) {}
+
+    // These would make sense but there is some code that does roughly this:
+    //   let x = LinkedList.empty();
+    //   x = x.append(...); // Fails: x is of type EmptyLinkedList.
+    // shouldBeEmpty(LinkedList.of<number>());
+    // shouldBeEmpty(LinkedList.empty<number>());
+
+    const empty = LinkedList.of() as EmptyLinkedList<number>;
+    const cons = LinkedList.of(0);
+    // See the comment in the definition of the LinkedList type for why we call these methods on LinkedList as well.
+    const either = LinkedList.of() as LinkedList<number>;
+
+    shouldBeCons(empty.append(0));
+    shouldBeCons(cons.append(0));
+    either.prepend(0);
+    shouldBeCons(empty.prepend(0));
+    shouldBeCons(cons.prepend(0));
+    either.prepend(0);
+
+    shouldBeEmpty(empty.reverse());
+    shouldBeCons(cons.reverse());
+    either.reverse();
+
+    shouldBeEmpty(empty.shuffle());
+    shouldBeCons(cons.shuffle());
+    either.shuffle();
+
+    shouldBeEmpty(empty.map(x => x));
+    shouldBeCons(cons.map(x => x));
+    either.map(x => x);
+    shouldBeEmpty(empty.mapOption(x => Option.of(1)));
+    either.mapOption(x => Option.of(1));
+
+    shouldBeEmpty(empty.sortBy(x => 0));
+    shouldBeCons(cons.sortBy(x => 0));
+    either.sortBy(x=> x);
+    shouldBeEmpty(empty.sortOn(x => x));
+    shouldBeCons(cons.sortOn(x => x));
+    either.sortOn(x => x);
+
+    shouldBeEmpty(empty.distinctBy(x => x));
+    shouldBeCons(cons.distinctBy(x => x));
+    either.distinctBy(x => x);
+
+    shouldBeEmpty(empty.forEach(x => {}));
+    shouldBeCons(cons.forEach(x => {}));
+    either.forEach(x=> {});
 });

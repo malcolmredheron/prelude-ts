@@ -158,7 +158,14 @@ export const LinkedList = new LinkedListStatic();
  * "static methods" available through [[LinkedListStatic]]
  * @param T the item type
  */
-export type LinkedList<T> = EmptyLinkedList<T> | ConsLinkedList<T>;
+export type LinkedList<T> = (EmptyLinkedList<T> | ConsLinkedList<T>) & {
+    // In some cases, TypeScript is confused by the distinct return types on the versions of methods on EmptyLinkedList
+    // and ConsLinkedList. It's not clear what makes these methods special, but for the ones where it has trouble, we
+    // define a generic version here.
+    map<U>(mapper:(v:T)=>U): LinkedList<U>;
+    mapOption<U>(mapper:(v:T)=>Option<U>): LinkedList<U>;
+    distinctBy<U>(keyExtractor: (x:T)=>U&WithEquality): LinkedList<T>;
+};
 
 /**
  * EmptyLinkedList is the empty linked list; every non-empty
@@ -432,7 +439,7 @@ export class EmptyLinkedList<T> implements Seq<T> {
      *     LinkedList.of(1,2,3).reverse();
      *     => LinkedList.of(3,2,1)
      */
-    reverse(): LinkedList<T> {
+    reverse(): EmptyLinkedList<T> {
         return this;
     }
 
@@ -500,7 +507,7 @@ export class EmptyLinkedList<T> implements Seq<T> {
     /**
      * Randomly reorder the elements of the collection.
      */
-    shuffle(): LinkedList<T> {
+    shuffle(): EmptyLinkedList<T> {
         return this;
     }
 
@@ -509,7 +516,7 @@ export class EmptyLinkedList<T> implements Seq<T> {
      * Warning: appending in a loop on a linked list is going
      * to be very slow!
      */
-    append(v:T): LinkedList<T> {
+    append(v:T): ConsLinkedList<T> {
         return LinkedList.of(v);
     }
 
@@ -541,7 +548,7 @@ export class EmptyLinkedList<T> implements Seq<T> {
     /**
      * Prepend an element at the beginning of the collection.
      */
-    prepend(elt: T): LinkedList<T> {
+    prepend(elt: T): ConsLinkedList<T> {
         return new ConsLinkedList(elt, this);
     }
 
@@ -556,7 +563,7 @@ export class EmptyLinkedList<T> implements Seq<T> {
      * Return a new collection where each element was transformed
      * by the mapper function you give.
      */
-    map<U>(mapper:(v:T)=>U): LinkedList<U> {
+    map<U>(mapper:(v:T)=>U): EmptyLinkedList<U> {
         return <EmptyLinkedList<U>>emptyLinkedList;
     }
 
@@ -570,7 +577,7 @@ export class EmptyLinkedList<T> implements Seq<T> {
      *         Option.of(x+1) : Option.none<number>())
      *     => LinkedList.of(3, 7)
      */
-    mapOption<U>(mapper:(v:T)=>Option<U>): LinkedList<U> {
+    mapOption<U>(mapper:(v:T)=>Option<U>): EmptyLinkedList<U> {
         return <EmptyLinkedList<U>>emptyLinkedList;
     }
 
@@ -624,7 +631,7 @@ export class EmptyLinkedList<T> implements Seq<T> {
      *
      * also see [[ConsLinkedList.sortOn]]
      */
-    sortBy(compare: (v1:T,v2:T)=>Ordering): LinkedList<T> {
+    sortBy(compare: (v1:T,v2:T)=>Ordering): EmptyLinkedList<T> {
         return this;
     }
 
@@ -644,7 +651,7 @@ export class EmptyLinkedList<T> implements Seq<T> {
      *
      * also see [[ConsLinkedList.sortBy]]
      */
-    sortOn(...getKeys: Array<ToOrderable<T>|{desc:ToOrderable<T>}>): LinkedList<T> {
+    sortOn(...getKeys: Array<ToOrderable<T>|{desc:ToOrderable<T>}>): EmptyLinkedList<T> {
         return this;
     }
 
@@ -655,14 +662,14 @@ export class EmptyLinkedList<T> implements Seq<T> {
      *     LinkedList.of(1,1,2,3,2,3,1).distinctBy(x => x)
      *     => LinkedList.of(1,2,3)
      */
-    distinctBy<U>(keyExtractor: (x:T)=>U&WithEquality): LinkedList<T> {
+    distinctBy<U>(keyExtractor: (x:T)=>U&WithEquality): EmptyLinkedList<T> {
         return this;
     }
 
     /**
      * Call a function for element in the collection.
      */
-    forEach(fn: (v:T)=>void): LinkedList<T> {
+    forEach(fn: (v:T)=>void): EmptyLinkedList<T> {
         return this;
     }
 
@@ -915,7 +922,7 @@ export class ConsLinkedList<T> implements Seq<T> {
                     return { done: true, value: <any>undefined };
                 }
                 const value = item.head().get();
-                item = item.tail().get();
+                item = item.tail().getOrUndefined() || LinkedList.empty();
                 return {done: false, value};
             }
         };
@@ -1219,8 +1226,8 @@ export class ConsLinkedList<T> implements Seq<T> {
      *     LinkedList.of(1,2,3).reverse();
      *     => LinkedList.of(3,2,1)
      */
-    reverse(): LinkedList<T> {
-        return this.foldLeft(<LinkedList<T>><EmptyLinkedList<T>>emptyLinkedList, (xs,x) => xs.prepend(x));
+    reverse(): ConsLinkedList<T> {
+        return this.foldLeft(<LinkedList<T>><EmptyLinkedList<T>>emptyLinkedList, (xs,x) => xs.prepend(x)) as ConsLinkedList<T>;
     }
 
     /**
@@ -1318,8 +1325,8 @@ export class ConsLinkedList<T> implements Seq<T> {
     /**
      * Randomly reorder the elements of the collection.
      */
-    shuffle(): LinkedList<T> {
-        return LinkedList.ofIterable<T>(SeqHelpers.shuffle(this.toArray()));
+    shuffle(): ConsLinkedList<T> {
+        return LinkedList.ofIterable<T>(SeqHelpers.shuffle(this.toArray())) as ConsLinkedList<T>;
     }
 
     /**
@@ -1327,7 +1334,7 @@ export class ConsLinkedList<T> implements Seq<T> {
      * Warning: appending in a loop on a linked list is going
      * to be very slow!
      */
-    append(v:T): LinkedList<T> {
+    append(v:T): ConsLinkedList<T> {
         return new ConsLinkedList(
             this.value,
             this._tail.append(v));
@@ -1372,7 +1379,7 @@ export class ConsLinkedList<T> implements Seq<T> {
     /**
      * Prepend an element at the beginning of the collection.
      */
-    prepend(elt: T): LinkedList<T> {
+    prepend(elt: T): ConsLinkedList<T> {
         return new ConsLinkedList(elt, this);
     }
 
@@ -1393,14 +1400,14 @@ export class ConsLinkedList<T> implements Seq<T> {
      * Return a new collection where each element was transformed
      * by the mapper function you give.
      */
-    map<U>(mapper:(v:T)=>U): LinkedList<U> {
+    map<U>(mapper:(v:T)=>U): ConsLinkedList<U> {
         let curItem: LinkedList<T> = this;
         let result: LinkedList<U> = <EmptyLinkedList<U>>emptyLinkedList;
         while (!curItem.isEmpty()) {
             result = new ConsLinkedList(mapper(curItem.value), result);
             curItem = curItem._tail;
         }
-        return result.reverse();
+        return result.reverse() as ConsLinkedList<U>;
     }
 
     /**
@@ -1490,8 +1497,8 @@ export class ConsLinkedList<T> implements Seq<T> {
      *
      * also see [[ConsLinkedList.sortOn]]
      */
-    sortBy(compare: (v1:T,v2:T)=>Ordering): LinkedList<T> {
-        return LinkedList.ofIterable<T>(this.toArray().sort(compare));
+    sortBy(compare: (v1:T,v2:T)=>Ordering): ConsLinkedList<T> {
+        return LinkedList.ofIterable<T>(this.toArray().sort(compare)) as ConsLinkedList<T>;
     }
 
     /**
@@ -1510,8 +1517,8 @@ export class ConsLinkedList<T> implements Seq<T> {
      *
      * also see [[ConsLinkedList.sortBy]]
      */
-    sortOn(...getKeys: Array<ToOrderable<T>|{desc:ToOrderable<T>}>): LinkedList<T> {
-        return <LinkedList<T>>SeqHelpers.sortOn<T>(this, getKeys);
+    sortOn(...getKeys: Array<ToOrderable<T>|{desc:ToOrderable<T>}>): ConsLinkedList<T> {
+        return <ConsLinkedList<T>>SeqHelpers.sortOn<T>(this, getKeys);
     }
 
     /**
@@ -1521,14 +1528,14 @@ export class ConsLinkedList<T> implements Seq<T> {
      *     LinkedList.of(1,1,2,3,2,3,1).distinctBy(x => x)
      *     => LinkedList.of(1,2,3)
      */
-    distinctBy<U>(keyExtractor: (x:T)=>U&WithEquality): LinkedList<T> {
-        return <LinkedList<T>>SeqHelpers.distinctBy(this, keyExtractor);
+    distinctBy<U>(keyExtractor: (x:T)=>U&WithEquality): ConsLinkedList<T> {
+        return <ConsLinkedList<T>>SeqHelpers.distinctBy(this, keyExtractor);
     }
 
     /**
      * Call a function for element in the collection.
      */
-    forEach(fn: (v:T)=>void): LinkedList<T> {
+    forEach(fn: (v:T)=>void): ConsLinkedList<T> {
         let curItem: LinkedList<T> = this;
         while (!curItem.isEmpty()) {
             fn(curItem.value);
